@@ -1,0 +1,8 @@
+;;
+;; extension for FunC standard library (stdlib.fc)
+;;
+
+int     extlib::tuple_len(tuple t) asm "TLEN PUSHINT";
+int     extlib::slice_data_equal?(slice s1, slice s2) asm "SDEQ";
+slice   extlib::empty_slice() asm "<b b> <s PUSHSLICE";
+slice   extlib::addr_none() asm "<b b{00} s, b> <s PUSHSLICE";
