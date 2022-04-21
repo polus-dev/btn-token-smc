@@ -5,3 +5,9 @@
 [![TON](https://img.shields.io/badge/based%20on-The%20Open%20Network-blue)](https://ton.org/)
 
 Based on TON [`"Fungible tokens (Jettons) standard"`](https://github.com/ton-blockchain/TIPs/issues/74)
+
+## build func
+
+```bash
+make
+```
