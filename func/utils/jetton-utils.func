@@ -1,4 +1,11 @@
-cell pack_jetton_wallet_data(int balance, slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+int workchain() asm "0 PUSHINT";
+
+cell pack_jetton_wallet_data(
+    int balance,
+    slice owner_address,
+    slice jetton_master_address,
+    cell jetton_wallet_code
+) inline {
     return begin_cell()
         .store_grams(balance)
         .store_slice(owner_address)
@@ -7,7 +14,11 @@ cell pack_jetton_wallet_data(int balance, slice owner_address, slice jetton_mast
         .end_cell();
 }
 
-cell calculate_jetton_wallet_state_init(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+cell calculate_jetton_wallet_state_init(
+    slice owner_address,
+    slice jetton_master_address,
+    cell jetton_wallet_code
+) inline {
     return begin_cell()
         .store_uint(0, 2)
         .store_dict(jetton_wallet_code)
@@ -25,7 +36,11 @@ slice calculate_jetton_wallet_address(cell state_init) inline {
         .begin_parse();
 }
 
-slice calculate_user_jetton_wallet_address(slice owner_address, slice jetton_master_address, cell jetton_wallet_code) inline {
+slice calculate_user_jetton_wallet_address(
+    slice owner_address,
+    slice jetton_master_address,
+    cell jetton_wallet_code
+) inline {
     return calculate_jetton_wallet_address(calculate_jetton_wallet_state_init(
         owner_address,
         jetton_master_address,
@@ -33,3 +48,7 @@ slice calculate_user_jetton_wallet_address(slice owner_address, slice jetton_mas
     ));
 }
 
+() force_chain(slice addr) impure {
+    (int wc, _) = parse_std_addr(addr);
+    throw_unless(333, wc == workchain());
+}
