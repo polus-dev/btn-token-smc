@@ -1,0 +1,23 @@
+;; biton minter ICO smart contract
+
+int exit_code::err_addr_format() asm "1001 PUSHINT";
+
+() recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
+    slice cs = msg.begin_parse();
+
+    throw_if(0, cs~load_uint(4) & 1);  ;; return on bounce
+    slice sender_addr = cs~load_msg_addr();
+
+    throw_unless(  ;; thow error if address isn't MsgAddrSmpl
+        exit_code::err_addr_format(),
+        extlib::is_addrsmpl(sender_addr)
+    );
+
+    int op = msg_body~load_uint(32);
+    throw_if(0, op == 0);  ;; ignore simple messages with comment
+    int query_id = msg_body~load_uint(64);
+
+    ;; TODO: implement ico-mint logic
+
+    throw(0xffff);
+}
