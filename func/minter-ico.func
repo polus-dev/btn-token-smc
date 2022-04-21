@@ -21,7 +21,10 @@
   );
 }
 
-() save_data(int total_supply, int liq_cap, int price, int end_time, slice admin_address, cell content, cell jetton_wallet_code) impure inline {
+() save_data(
+    int total_supply, int liq_cap, int price, int end_time,
+    slice admin_address, cell content, cell jetton_wallet_code
+) impure inline {
   set_data(begin_cell()
         .store_grams(total_supply)
         .store_grams(liq_cap)
@@ -34,7 +37,10 @@
     );
 }
 
-() mint_tokens(slice to_address, cell jetton_wallet_code, int amount, cell master_msg) impure {
+() mint_tokens(
+    slice to_address, cell jetton_wallet_code,
+    int amount, cell master_msg
+) impure {
     cell state_init = calculate_jetton_wallet_state_init(to_address, my_address(), jetton_wallet_code);
     slice to_wallet_address = calculate_jetton_wallet_address(state_init);
     var msg = begin_cell()
