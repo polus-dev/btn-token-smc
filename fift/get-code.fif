@@ -1,1 +1,19 @@
-include
+//
+//  Fift script to get boc, code cell print and code cell sha256 hash from fift-asm code
+//
+
+{ ."usage: " @' $0 type ." <fift-code-path>" cr
+  ."get boc, code cell print and code "
+  ."cell sha256 hash from fift-asm code" cr 1 halt
+} : usage $# 1 <> ' usage if
+
+$1 include
+
+."Source code BOC in hexadecimal:" cr
+dup 2 boc+>B Bx. cr cr
+
+."Source code cell human readable:" cr
+dup <s csr. cr
+
+."Source code cell sha256 hash in hex:" cr
+hashu X. cr
