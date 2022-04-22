@@ -107,3 +107,8 @@ int ext_code::err_auth() asm "1002 PUSHINT";
 }
 
 ;; TODO: implement get methods
+
+(int {- liq_cap -}, int {- price -}, int {- end_time -}) get_ico_data() method_id {
+    (slice ds, _) = get_data().begin_parse().load_grams();
+    return (ds~load_grams(), ds~load_grams(), ds~load_grams());
+}
