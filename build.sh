@@ -1,7 +1,7 @@
 #!/bin/bash
 # builder for BTN FunC code
 
-func_targets=( "func/jetton-wallet.func" "func/minter-ico.func" )
+func_targets=( "func/minter-ico-v2.func" )
 func_libs_path="func/lib"; func_utils_path="func/utils"
 out_dir="auto"
 

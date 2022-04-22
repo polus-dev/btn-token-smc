@@ -14,7 +14,7 @@ cell pack_jetton_wallet_data(
         .end_cell();
 }
 
-cell calculate_jetton_wallet_state_init(
+cell jwall_state_init(
     slice owner_address,
     slice jetton_master_address,
     cell jetton_wallet_code
@@ -27,7 +27,7 @@ cell calculate_jetton_wallet_state_init(
         .end_cell();
 }
 
-slice calculate_jetton_wallet_address(cell state_init) inline {
+slice jwall_state_addr(cell state_init) inline {
     return begin_cell()
         .store_uint(4, 3)
         .store_int(workchain(), 8)
@@ -41,7 +41,7 @@ slice calculate_user_jetton_wallet_address(
     slice jetton_master_address,
     cell jetton_wallet_code
 ) inline {
-    return calculate_jetton_wallet_address(calculate_jetton_wallet_state_init(
+    return jwall_state_addr(jwall_state_init(
         owner_address,
         jetton_master_address,
         jetton_wallet_code
