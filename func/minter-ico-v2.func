@@ -6,8 +6,10 @@ int ext_code::err_addr_format() asm "1001 PUSHINT";
 ;; mint exit codes
 int ext_code::err_auth() asm "1002 PUSHINT";
 
+(slice) parse_data() inline { return get_data().begin_parse(); }
+
 (int, int, int, int, slice, cell, cell) load_data() inline {
-    slice ds = get_data().begin_parse();
+    slice ds = parse_data();
     return (
         ds~load_grams(),      ;; supply
         ds~load_grams(),      ;; liq_cap
@@ -15,7 +17,8 @@ int ext_code::err_auth() asm "1002 PUSHINT";
         ds~load_uint(32),     ;; end_time (unix format)
         ds~load_msg_addr(),   ;; owner_addr
         ds~load_ref(),        ;; jwall_code
-        ds~load_ref()         ;; content
+
+        ds~load_ref()         ;; content ;; TODO: change content to name and symbol
     );
 }
 
@@ -100,15 +103,31 @@ int ext_code::err_auth() asm "1002 PUSHINT";
         return ();
     }
 
+    if (op == op::buy_tokens()) {
+
+        return ();
+    }
+
     ;; TODO: implement op::burn_notification
     ;; TODO: implement op::withdraw()
 
     throw(0xffff);
 }
 
-;; TODO: implement get methods
+(int) name() method_id { return 1; {- biton -} } ;; TODO: return "biton" as int
+(int) symbol() method_id { return 1; {- BTN -} } ;; TODO: return "BTN" as int
+
+(int {- wc -}, int {- addr -}) owner() method_id {
+    (_, _, _, _, slice owner_addr, _, _) = load_data();
+    return parse_std_addr(owner_addr);
+}
+
+(int) total_supply() method_id {
+    (_, int total_supply) = parse_data().load_grams();
+    return total_supply;
+}
 
 (int {- liq_cap -}, int {- price -}, int {- end_time -}) get_ico_data() method_id {
-    (slice ds, _) = get_data().begin_parse().load_grams();
+    (slice ds, _) = parse_data().load_grams();
     return (ds~load_grams(), ds~load_grams(), ds~load_grams());
 }

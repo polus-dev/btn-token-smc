@@ -7,6 +7,7 @@ int op::burn_notification()     asm "0x7bdd97de PUSHINT";
 
 ;; ---- minter-ico ----
 
-;;  hex(binascii.crc32(bytes("mint", "utf-8")) & 0x7fffffff)
-int op::mint()      asm "0x318f361 PUSHINT";
-int op::withdraw()  asm "0x35de5f9e PUSHINT";
+int op::mint()          asm "1 PUSHINT";
+int op::buy_tokens()    asm "2 PUSHINT";
+int op::withdraw()      asm "3 PUSHINT";
+
