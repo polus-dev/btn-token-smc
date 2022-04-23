@@ -2,9 +2,10 @@
 
 ;; basic exti codes
 int ext_code::err_addr_format() asm "1001 PUSHINT";
-
 ;; mint exit codes
 int ext_code::err_auth() asm "1002 PUSHINT";
+
+slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
 
 (slice) parse_data() inline { return get_data().begin_parse(); }
 
@@ -45,12 +46,21 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     );
 }
 
-(int {- jetton_amount -} ) mint_tokens(slice msg_body, cell jwall_code) impure inline {
-    slice to_address = msg_body~load_msg_addr();
-    int amount = msg_body~load_grams();
-    cell master_msg = msg_body~load_ref();
+(
+    slice {- to_address -}, int {- amount -},
+    cell {- master_msg -}, int {- jetton_amount -}
+) parse_body_mint(slice msg_body) inline {
+    slice   to_address      = msg_body~load_msg_addr();
+    int     amount          = msg_body~load_grams();
+    cell    master_msg      = msg_body~load_ref();
+    slice   msc             = master_msg.begin_parse().skip_bits(32 + 64);
+    int     jetton_amount   = msc~load_grams();
 
-    slice mm_cs = master_msg.begin_parse().skip_bits(32 + 64);
+    return (to_address, amount, master_msg, jetton_amount);
+}
+
+(int {- jetton_amount -} ) mint_tokens(data, cell jwall_code) impure inline {
+    (slice to_address, int amount, cell master_msg, int jetton_amount) = data;
 
     cell state_init = jwall_state_init(
         to_address,     ;; mint to
@@ -58,55 +68,90 @@ int ext_code::err_auth() asm "1002 PUSHINT";
         jwall_code      ;; code cell of jetton wallet
     );
 
-    slice to_wallet_address = jwall_state_addr(state_init);
-
     builder msg = begin_cell()
         .store_uint(0x18, 6)
-        .store_slice(to_wallet_address)
+        .store_slice(jwall_state_addr(state_init))
         .store_grams(amount)
         .store_uint(4 + 2 + 1, 1 + 4 + 4 + 64 + 32 + 1 + 1 + 1)
         .store_ref(state_init)
         .store_ref(master_msg);
 
     send_raw_message(msg.end_cell(), 1);
-
-    slice msc = master_msg.begin_parse().skip_bits(32 + 64);
-    return msc~load_grams();
+    return jetton_amount;
 }
 
-() recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
-    slice cs = msg.begin_parse();
+(   int {- op -}, int {- query_id -},
+    slice {- sender_addr -}
+) handle::start(cell msg, slice msg_body) impure inline {
+     slice cs = msg.begin_parse();
+     throw_if(0, cs~load_uint(4) & 1);  ;; return on bounce
 
-    throw_if(0, cs~load_uint(4) & 1);  ;; return on bounce
-    slice sender_addr = cs~load_msg_addr();
+     slice sender_addr = cs~load_msg_addr();
 
-    throw_unless(  ;; thow error if address isn't MsgAddrSmpl
-        ext_code::err_addr_format(),
-        extlib::is_addrsmpl(sender_addr)
-    );
+     throw_unless(  ;; thow error if address isn't MsgAddrSmpl
+         ext_code::err_addr_format(),
+         extlib::is_addrsmpl(sender_addr)
+     );
 
-    int op = msg_body~load_uint(32);
-    throw_if(0, op == 0);  ;; ignore simple messages with comment
-;;     int query_id = msg_body~load_uint(64);
+     int op = msg_body~load_uint(32);
+     throw_if(0, op == 0);  ;; ignore simple messages with comment
+     int query_id = msg_body~load_uint(64);
 
+     return (op, query_id, sender_addr);
+}
+
+() handle:buy_tokens(int msg_value, slice sender_addr) impure inline {
     (
         int supply, int liq_cap, int price, int end_time,
         slice owner_addr, cell jwall_code, cell content
     ) = load_data();
 
-    if (op == op::mint()) {
-        auth_by_owner(sender_addr, owner_addr);
-        save_data(
-            supply + mint_tokens(msg_body, jwall_code), liq_cap, price,
-            end_time, owner_addr, jwall_code, content
-        );
-        return ();
-    }
+    throw_if(75, supply >= liq_cap);
+    throw_if(76, now() > end_time);
 
-    if (op == op::buy_tokens()) {
+    int mint_amount = 1 << 24;  ;; ~ 0.01677 TON
+    int buy_amount = msg_value - mint_amount;
+    throw_if(76, buy_amount < price);
 
-        return ();
-    }
+    int jamount = buy_amount * extlib::1gram() / price;
+
+    cell master_msg = begin_cell()                  ;; begin_cell
+        .store_uint(op::internal_transfer(), 32)    ;; op internal_transfer
+        .store_uint(cur_lt(), 64)       ;; query_id
+        .store_grams(jamount)           ;; amount
+        .store_slice(my_address())      ;; from
+        .store_slice(sender_addr)       ;; response_address
+        .store_grams(1)                 ;; forward_ton_amount
+        .store_int(0, 1)                ;; forward_payload [Either Cell ^Cell] bit
+        .store_uint(0, 32)              ;; op 0 – trasfer comment
+        .store_slice(txt::from_ico())   ;; trasfer comment text
+        .end_cell();                    ;; end of cell
+
+    save_data(
+        supply + mint_tokens((sender_addr, mint_amount, master_msg, jamount), jwall_code),
+        liq_cap, price, end_time, owner_addr, jwall_code, content
+    );
+}
+
+() handle::mint(slice msg_body, slice sender_addr) impure inline {
+    (
+        int supply, int liq_cap, int price, int end_time,
+        slice owner_addr, cell jwall_code, cell content
+    ) = load_data();
+
+    var parsed_body = parse_body_mint(msg_body);
+    auth_by_owner(sender_addr, owner_addr);
+    save_data(
+        supply + mint_tokens(parsed_body, jwall_code), liq_cap, price,
+        end_time, owner_addr, jwall_code, content
+    );
+}
+
+() recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
+    (int op, _ {- query_id -}, slice sender_addr) = handle::start(msg, msg_body);
+
+    if (op == op::mint()) { handle::mint(msg_body, sender_addr); return (); }
+    if (op == op::buy_tokens()) { handle:buy_tokens(msg_value, sender_addr); return (); }
 
     ;; TODO: implement op::burn_notification
     ;; TODO: implement op::withdraw()

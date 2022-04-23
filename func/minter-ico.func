@@ -60,6 +60,7 @@
       (int total_supply, int liq_cap, int price, int end_time, slice admin_address, cell content, cell jetton_wallet_code) = load_data();
       throw_if(75, total_supply >= liq_cap);
       throw_if(76, now() > end_time);
+
       int amount = 50000000; ;; for mint message
       int buy_amount = msg_value - amount;
       throw_if(77, buy_amount < price);
