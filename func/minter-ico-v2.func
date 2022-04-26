@@ -5,8 +5,6 @@ int ext_code::err_addr_format() asm "1001 PUSHINT";
 ;; mint exit codes
 int ext_code::err_auth() asm "1002 PUSHINT";
 
-slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
-
 (slice) parse_data() inline { return get_data().begin_parse(); }
 
 (int, int, int, int, slice, cell, cell) load_data() inline {
@@ -80,9 +78,9 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
     return jetton_amount;
 }
 
-(   int {- op -}, int {- query_id -},
-    slice {- sender_addr -}
-) handle::start(cell msg, slice msg_body) impure inline {
+(
+    int {- op -}, slice {- sender_addr -}
+) handle::start(cell msg, slice msg_body) impure inline_ref {
      slice cs = msg.begin_parse();
      throw_if(0, cs~load_uint(4) & 1);  ;; return on bounce
 
@@ -91,13 +89,17 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
      throw_unless(  ;; thow error if address isn't MsgAddrSmpl
          ext_code::err_addr_format(),
          extlib::is_addrsmpl(sender_addr)
-     );
+    );
 
-     int op = msg_body~load_uint(32);
-     throw_if(0, op == 0);  ;; ignore simple messages with comment
-     int query_id = msg_body~load_uint(64);
+    int op = -1;
+    if (slice_empty?(msg_body)){
+        op = op::buy_tokens();
+    } else {
+        op = msg_body~load_uint(32);
+        if (op == 0) { op = op::buy_tokens(); }
+    }
 
-     return (op, query_id, sender_addr);
+    return (op, sender_addr);
 }
 
 () handle:buy_tokens(int msg_value, slice sender_addr) impure inline {
@@ -109,7 +111,7 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
     throw_if(75, supply >= liq_cap);
     throw_if(76, now() > end_time);
 
-    int mint_amount = 1 << 24;  ;; ~ 0.01677 TON
+    int mint_amount = 1 << 27;  ;; ~ 0.1342 TON
     int buy_amount = msg_value - mint_amount;
     throw_if(76, buy_amount < price);
 
@@ -123,8 +125,6 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
         .store_slice(sender_addr)       ;; response_address
         .store_grams(1)                 ;; forward_ton_amount
         .store_int(0, 1)                ;; forward_payload [Either Cell ^Cell] bit
-        .store_uint(0, 32)              ;; op 0 – trasfer comment
-        .store_slice(txt::from_ico())   ;; trasfer comment text
         .end_cell();                    ;; end of cell
 
     save_data(
@@ -148,7 +148,7 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
 }
 
 () recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
-    (int op, _ {- query_id -}, slice sender_addr) = handle::start(msg, msg_body);
+    (int op, slice sender_addr) = handle::start(msg, msg_body);
 
     if (op == op::mint()) { handle::mint(msg_body, sender_addr); return (); }
     if (op == op::buy_tokens()) { handle:buy_tokens(msg_value, sender_addr); return (); }
@@ -159,18 +159,31 @@ slice txt::from_ico() asm "<b 124 word BTN from ICO| $, b> <s PUSHSLICE";
     throw(0xffff);
 }
 
-(int) name() method_id { return 1; {- biton -} } ;; TODO: return "biton" as int
-(int) symbol() method_id { return 1; {- BTN -} } ;; TODO: return "BTN" as int
-
-(int {- wc -}, int {- addr -}) owner() method_id {
-    (_, _, _, _, slice owner_addr, _, _) = load_data();
-    return parse_std_addr(owner_addr);
+;; ----------- by standart
+(int, int, slice, cell, cell) get_jetton_data() method_id {
+    (int supply, _, _, _, slice owner, cell jwall_code, cell content) = load_data();
+    return (supply, -1, owner, content, jwall_code);
 }
 
-(int) total_supply() method_id {
-    (_, int total_supply) = parse_data().load_grams();
-    return total_supply;
+slice get_wallet_address(slice owner_addr) method_id {
+    (_, _, _, _, _, cell jwall_code, _) = load_data();
+    return jwall_addr_by_owner(owner_addr, my_address(), jwall_code);
 }
+;; -----------------------
+
+
+;; (int) name() method_id { return 1; {- biton -} } ;; TODO: return "biton" as int
+;; (int) symbol() method_id { return 1; {- BTN -} } ;; TODO: return "BTN" as int
+;;
+;; (int {- wc -}, int {- addr -}) owner() method_id {
+;;     (_, _, _, _, slice owner_addr, _, _) = load_data();
+;;     return parse_std_addr(owner_addr);
+;; }
+;;
+;; (int) total_supply() method_id {
+;;     (_, int total_supply) = parse_data().load_grams();
+;;     return total_supply;
+;; }
 
 (int {- liq_cap -}, int {- price -}, int {- end_time -}) get_ico_data() method_id {
     (slice ds, _) = parse_data().load_grams();

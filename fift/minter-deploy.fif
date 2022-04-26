@@ -1,0 +1,77 @@
+"TonUtil.fif"   include
+"GetOpt.fif"    include
+"Asm.fif"       include
+
+{ show-options-help 1 halt } : usage 0 =: t-flag
+{ { +" " } 7 times } : my-tab
+
+begin-options
+    "<liq-cap> <price> <end-time> <owner-addr> [--testnet]"  +cr +cr my-tab
+    +"Prepares deploy message of the minter-ico smart contract"  +cr my-tab
+    disable-digit-options generic-help-setopt
+
+    "t" "--testnet" { 2 =: t-flag } short-long-option
+        "Displays addresses with the testnet-only flag (+2)" option-help
+    "h" "--help" { usage } short-long-option
+        "Shows a help message" option-help
+parse-options
+
+$# 4 <> ' usage if
+
+0 =: workchain-id
+$1 $>GR =: liq-cap
+$2 $>GR =: price
+$3 parse-int =: end-time
+$4 parse-smc-addr drop 2=: owner-addr
+
+<{  SETCP0 ACCEPT
+    "auto/minter-ico-v2.func.code.fif" include PUSHREF SETCODE
+}>c =: minter-code
+
+"auto/jetton-wallet.func.code.fif" include =: jwallet-code
+
+<b  // TODO: implement new standart
+    0x01 8 u, // offchain
+    "https://bafkreigdwrwkgjglg36osw2lwjyjagjbf2jb2omfifmyljflesvw3s7gxu.ipfs.cf-ipfs.com" $,
+b>  =: full-content
+
+<b
+    0 Gram,             // supply
+    liq-cap Gram,       // liq_cap
+    price Gram,         // price
+    end-time 32 u,      // end_time
+    owner-addr Addr,    // owner_addr
+    jwallet-code ref,   // jwall_code
+    full-content ref,
+b>  =: init-storage
+
+<b
+    b{0011} s,   // split_depth:0 special:0 code:1 data:1
+    minter-code ref,
+    init-storage ref,
+    null dict,   // library
+b>  =: state-init
+
+state-init hashu workchain-id swap 2=: smc-addr
+
+."new smc address:                        " smc-addr             .addr cr
+."non-bounceable address (for init):      " smc-addr  t-flag 5 + .Addr cr
+."bounceable address (for later access):  " smc-addr  t-flag 4 + .Addr cr
+
+<b
+    b{10} s,        // ext_in_msg_info$10
+    b{00} s,        // src:MsgAddressExt (addr_none$00)
+    smc-addr Addr,  // dest:MsgAddressInt
+    0 Gram,         // import_fee:Grams
+b>  =: common-msg-info
+
+<b  // Message X
+    common-msg-info <s s,
+    b{1} s,    // init:  "1" Maybe bit
+    b{0} s,    // Either "0" bit
+    state-init <s s,
+    b{0} s, // body:  "0" Either bit
+b> 2 boc+>B
+
+"auto/init.boc" tuck B>file
+."saved smc creating query to file: " type cr
