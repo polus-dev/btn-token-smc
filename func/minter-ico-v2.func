@@ -159,7 +159,6 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     throw(0xffff);
 }
 
-;; ----------- by standart
 (int, int, slice, cell, cell) get_jetton_data() method_id {
     (int supply, _, _, _, slice owner, cell jwall_code, cell content) = load_data();
     return (supply, -1, owner, content, jwall_code);
@@ -169,21 +168,21 @@ slice get_wallet_address(slice owner_addr) method_id {
     (_, _, _, _, _, cell jwall_code, _) = load_data();
     return jwall_addr_by_owner(owner_addr, my_address(), jwall_code);
 }
-;; -----------------------
 
+(int {- addr -}) get_wallet_address_int(int owner_addr) method_id {
+    slice owner = begin_cell()
+        .store_slice(extlib::addrsmpl_start())  ;; addr_std$10 anycast:(## 1) {anycast = 0}
+        .store_int(0, 8)                        ;; workchain_id:int8 {workchain_id = 0}
+        .store_uint(owner_addr, 256)            ;; address:bits256
+        .end_cell().begin_parse();
 
-;; (int) name() method_id { return 1; {- biton -} } ;; TODO: return "biton" as int
-;; (int) symbol() method_id { return 1; {- BTN -} } ;; TODO: return "BTN" as int
-;;
-;; (int {- wc -}, int {- addr -}) owner() method_id {
-;;     (_, _, _, _, slice owner_addr, _, _) = load_data();
-;;     return parse_std_addr(owner_addr);
-;; }
-;;
-;; (int) total_supply() method_id {
-;;     (_, int total_supply) = parse_data().load_grams();
-;;     return total_supply;
-;; }
+    (_, _, _, _, _, cell jwall_code, _) = load_data();
+    slice owner_jwall = jwall_addr_by_owner(owner, my_address(), jwall_code);
+
+    owner_jwall~skip_bits(2 + 1 + 8);  ;; skip constructor, anycast, workchain_id
+
+    return owner_jwall.preload_uint(256);
+}
 
 (int {- liq_cap -}, int {- price -}, int {- end_time -}) get_ico_data() method_id {
     (slice ds, _) = parse_data().load_grams();
