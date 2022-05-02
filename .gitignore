@@ -1,6 +1,6 @@
 .idea/
-
 !auto/.gitkeep
 auto/*
 
-test-btn.json
+deprecated
+testnet-global.config.json
