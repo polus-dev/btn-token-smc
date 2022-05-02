@@ -158,7 +158,7 @@ _ load_data() inline {
         .store_grams(jamount)           ;; amount
         .store_slice(my_address())      ;; from
         .store_slice(sender_addr)       ;; response_address
-        .store_grams(1)                 ;; forward_ton_amount
+        .store_grams(0)                 ;; forward_ton_amount
         .store_int(0, 1)                ;; forward_payload [Either Cell ^Cell] bit
         .end_cell();                    ;; end of cell
 
