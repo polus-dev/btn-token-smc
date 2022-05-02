@@ -26,11 +26,13 @@ $3 $>GR =: price
 $4 parse-int =: end-time
 $5 parse-smc-addr drop 2=: owner-addr
 
+liq-cap max-supply > abort"liq-cap can't be more than max-supply"
+
 <{  SETCP0 ACCEPT
-    "auto/minter-ico-v2.func.code.fif" include PUSHREF SETCODE
+    "auto/btn-mint-ico.func.code.fif" include PUSHREF SETCODE
 }>c =: minter-code
 
-"auto/jetton-wallet.func.code.fif" include =: jwallet-code
+"auto/btn-jwallet.func.code.fif" include =: jwallet-code
 
 <b  // TODO: implement new standart
     0x01 8 u, // offchain
