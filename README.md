@@ -6,6 +6,8 @@
 
 Based on TON [`"Fungible tokens (Jettons) standard"`](https://github.com/ton-blockchain/TIPs/issues/74)
 
+> :warning: Work in progress. This is not production ready version yet.
+
 ## What have we added?
 
 ```bash
