@@ -1,25 +1,27 @@
-;; Jetton Wallet Smart Contract
-
-{-
-
-NOTE that this tokens can be transferred within the same workchain.
-
-This is suitable for most tokens, if you need tokens transferable between workchains there are two solutions:
-
-1) use more expensive but universal function below to calculate message forward fee for arbitrary destination (see `misc/forward-fee-calc.cs`)
-
-2) use token holder proxies in target workchain (that way even 'non-universal' token can be used from any workchain)
-
--}
+;;
+;;  btn-token-smc – smart contracts collection for Biton token
+;;
+;;  Copyright (C) 2022 BITON <https://github.com/BITONdev>
+;;
+;;  This file is part of btn-token-smc.
+;;
+;;  btn-token-smc is free software: you can redistribute it and/or modify
+;;  it under the terms of the GNU General Public License as published by
+;;  the Free Software Foundation, either version 3 of the License, or
+;;  (at your option) any later version.
+;;
+;;  btn-token-smc is distributed in the hope that it will be useful,
+;;  but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;  GNU General Public License for more details.
+;;
+;;  You should have received a copy of the GNU General Public License
+;;  along with btn-token-smc.  If not, see <https://www.gnu.org/licenses/>.
+;;
 
 int min_tons_for_storage() asm "10000000 PUSHINT"; ;; 0.01 TON
 int gas_consumption() asm "10000000 PUSHINT"; ;; 0.01 TON
 
-{-
-    Storage
-    storage#_ balance:Coins owner_address:MsgAddressInt
-        jetton_master_address:MsgAddressInt jetton_wallet_code:^Cell = Storage;
--}
 
 (int, slice, slice, cell) load_data() inline {
   slice ds = get_data().begin_parse();
