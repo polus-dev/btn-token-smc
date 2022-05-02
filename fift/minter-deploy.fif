@@ -6,7 +6,7 @@
 { { +" " } 7 times } : my-tab
 
 begin-options
-    "<liq-cap> <price> <end-time> <owner-addr> [--testnet]"  +cr +cr my-tab
+    "<max-supply> <liq-cap> <price> <end-time> <owner-addr> [--testnet]"  +cr +cr my-tab
     +"Prepares deploy message of the minter-ico smart contract"  +cr my-tab
     disable-digit-options generic-help-setopt
 
@@ -16,13 +16,15 @@ begin-options
         "Shows a help message" option-help
 parse-options
 
-$# 4 <> ' usage if
+$# 5 <> ' usage if
 
 0 =: workchain-id
-$1 $>GR =: liq-cap
-$2 $>GR =: price
-$3 parse-int =: end-time
-$4 parse-smc-addr drop 2=: owner-addr
+
+$1 $>GR =: max-supply
+$2 $>GR =: liq-cap
+$3 $>GR =: price
+$4 parse-int =: end-time
+$5 parse-smc-addr drop 2=: owner-addr
 
 <{  SETCP0 ACCEPT
     "auto/minter-ico-v2.func.code.fif" include PUSHREF SETCODE
@@ -41,8 +43,9 @@ b>  =: full-content
     price Gram,         // price
     end-time 32 u,      // end_time
     owner-addr Addr,    // owner_addr
+    max-supply Gram,    // max-supply
     jwallet-code ref,   // jwall_code
-    full-content ref,
+    full-content ref,   // content
 b>  =: init-storage
 
 <b
