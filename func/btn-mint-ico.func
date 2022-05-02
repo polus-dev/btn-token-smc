@@ -55,8 +55,9 @@ _ load_data() inline {
     return (to_address, amount, master_msg, jetton_amount);
 }
 
-(int {- jetton_amount -} ) mint_tokens(data, cell jwall_code) impure inline {
-    (slice to_address, int amount, cell master_msg, int jetton_amount) = data;
+(int {- jetton_amount -} ) mint_tokens(data, cell jwall_code, int supply, int max_supply) impure inline {
+    (slice to_address, int amount, cell master_msg,  int jetton_amount) = data;
+    throw_if(ext_code::max_supply_limit(), supply + amount > max_supply);
 
     cell state_init = jwall_state_init(
         to_address,     ;; mint to
@@ -110,7 +111,7 @@ _ load_data() inline {
     var parsed_body = parse_body_mint(msg_body);
     auth_by_owner(sender_addr, owner_addr);
     save_data(
-        supply + mint_tokens(parsed_body, jwall_code), liq_cap, price,
+        supply + mint_tokens(parsed_body, jwall_code, supply, max_supply), liq_cap, price,
         end_time, owner_addr, max_supply, jwall_code, content
     );
 }
@@ -141,7 +142,7 @@ _ load_data() inline {
         .end_cell();                    ;; end of cell
 
     save_data(
-        supply + mint_tokens((sender_addr, mint_amount, master_msg, jamount), jwall_code),
+        supply + mint_tokens((sender_addr, mint_amount, master_msg, jamount), jwall_code, supply, max_supply),
         liq_cap, price, end_time, owner_addr, max_supply, jwall_code, content
     );
 }
@@ -233,7 +234,11 @@ slice get_wallet_address(slice owner_addr) method_id {
     return owner_jwall.preload_uint(256);
 }
 
-(int {- liq_cap -}, int {- price -}, int {- end_time -}) get_ico_data() method_id {
+(int, int, int, int) get_ico_data() method_id {
     (slice ds, _) = parse_data().load_grams();
-    return (ds~load_grams(), ds~load_grams(), ds~load_grams());
+    (int liq_cap, int price, int end_time) = (ds~load_grams(), ds~load_grams(), ds~load_uint(32));
+    ds~load_msg_addr(); ;; skip owner_addr
+    int max_supply = ds~load_grams();
+
+    return (liq_cap, price, end_time, max_supply);
 }
