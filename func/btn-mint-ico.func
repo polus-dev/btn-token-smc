@@ -78,7 +78,7 @@ _ load_data() inline {
 
 (int {- jetton_amount -} ) mint_tokens(data, cell jwall_code, int supply, int max_supply) impure inline {
     (slice to_address, int amount, cell master_msg,  int jetton_amount) = data;
-    throw_if(ext_code::max_supply_limit(), supply + amount > max_supply);
+    throw_if(ext_code::max_supply_limit(), supply + jetton_amount > max_supply);
 
     cell state_init = jwall_state_init(
         to_address,     ;; mint to
