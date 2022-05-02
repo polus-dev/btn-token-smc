@@ -1,6 +1,6 @@
 ;; biton minter ICO smart contract
 
-;; basic exti codes
+;; basic exit codes
 int ext_code::err_addr_format() asm "1001 PUSHINT";
 ;; mint exit codes
 int ext_code::err_auth() asm "1002 PUSHINT";
@@ -78,6 +78,9 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     return jetton_amount;
 }
 
+
+
+
 (
     int {- op -}, slice {- sender_addr -}
 ) handle::start(cell msg, slice msg_body) impure inline_ref {
@@ -90,19 +93,23 @@ int ext_code::err_auth() asm "1002 PUSHINT";
          ext_code::err_addr_format(),
          extlib::is_addrsmpl(sender_addr)
     );
-
+    (
+        int supply, int liq_cap, int price, int end_time,
+        slice owner_addr, cell jwall_code, cell content
+    ) = load_data();
     int op = -1;
     if (slice_empty?(msg_body)){
         op = op::buy_tokens();
     } else {
         op = msg_body~load_uint(32);
-        if (op == 0) { op = op::buy_tokens(); }
+        ;; if there is a comment and it is from owner, we do op withdraw, so owner can both buy and withdraw coins
+        if (op == 0) { op = extlib::slice_data_equal?(sender_addr, owner_addr) ? op::withdraw() : op::buy_tokens(); } 
     }
 
     return (op, sender_addr);
 }
 
-() handle:buy_tokens(int msg_value, slice sender_addr) impure inline {
+() handle::buy_tokens(int msg_value, slice sender_addr) impure inline {
     (
         int supply, int liq_cap, int price, int end_time,
         slice owner_addr, cell jwall_code, cell content
@@ -115,7 +122,7 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     int buy_amount = msg_value - mint_amount;
     throw_if(76, buy_amount < price);
 
-    int jamount = buy_amount * extlib::1gram() / price;
+    int jamount = buy_amount * extlib::1ton() / price;
 
     cell master_msg = begin_cell()                  ;; begin_cell
         .store_uint(op::internal_transfer(), 32)    ;; op internal_transfer
@@ -147,15 +154,59 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     );
 }
 
+() handle::burn_tokens(slice in_msg_body, slice sender_address) impure inline {
+    int jetton_amount = in_msg_body~load_grams();
+    slice from_address = in_msg_body~load_msg_addr();
+
+    throw_unless(74, extlib::slice_data_equal?(
+        calculate_user_jetton_wallet_address(
+            from_address,
+            my_address(),
+            jetton_wallet_code
+        ), sender_address
+    ));
+
+    save_data(total_supply - jetton_amount, liq_cap, price, end_time, admin_address, content, jetton_wallet_code);
+
+    slice response_address = in_msg_body~load_msg_addr();
+    if (response_address.preload_uint(2) != 0) {
+        var msg = begin_cell()
+            .store_uint(0x10, 6) ;; nobounce - int_msg_info$0 ihr_disabled:Bool bounce:Bool bounced:Bool src:MsgAddress -> 011000
+            .store_slice(response_address)
+            .store_grams(0)
+            .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+            .store_uint(op::excesses(), 32)
+            .store_uint(query_id, 64);
+
+        send_raw_message(msg.end_cell(), 2 + 64);
+    }
+    return ();
+}
+
+
+() handle::withdraw(int balance, slice sender_addr) impure inline {
+    (
+        int supply, int liq_cap, int price, int end_time,
+        slice owner_addr, cell jwall_code, cell content
+    ) = load_data();
+    auth_by_owner(sender_addr, owner_addr);
+    builder msg = begin_cell()
+        .store_uint(0x18, 6)
+        .store_slice(owner_addr)
+        .store_grams(balance - extlib::1ton())
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
+    send_raw_message(msg.end_cell(), 2);
+}
+
+
 () recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
     (int op, slice sender_addr) = handle::start(msg, msg_body);
 
     if (op == op::mint()) { handle::mint(msg_body, sender_addr); return (); }
-    if (op == op::buy_tokens()) { handle:buy_tokens(msg_value, sender_addr); return (); }
-
-    ;; TODO: implement op::burn_notification
-    ;; TODO: implement op::withdraw()
-
+    if (op == op::buy_tokens()) { handle::buy_tokens(msg_value, sender_addr); return (); }
+    if (op == op::burn_notification()) { handle::burn_tokens(msg_body, sender_addr); return (); }
+    if (op == op::withdraw()) { handle::withdraw(my_balance, sender_addr); return (); }
+   
     throw(0xffff);
 }
 
@@ -169,7 +220,7 @@ slice get_wallet_address(slice owner_addr) method_id {
     return jwall_addr_by_owner(owner_addr, my_address(), jwall_code);
 }
 
-(int {- addr -}) get_wallet_address_int(int owner_addr) method_id {
+(int {- addr -}) get_wallet_address_int(int owner_addr) method_id { ;; use only if workchain = 0
     slice owner = begin_cell()
         .store_slice(extlib::addrsmpl_start())  ;; addr_std$10 anycast:(## 1) {anycast = 0}
         .store_int(0, 8)                        ;; workchain_id:int8 {workchain_id = 0}
