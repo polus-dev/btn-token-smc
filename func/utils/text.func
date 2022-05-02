@@ -1,0 +1,5 @@
+;;
+;; set of texts that the smc uses
+;;
+
+slice text::ico_profit_withdraw() asm "<b 124 word withdraw profit from ICO| $, b> <s PUSHSLICE";

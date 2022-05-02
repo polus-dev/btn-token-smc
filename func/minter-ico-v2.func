@@ -2,14 +2,17 @@
 
 ;; basic exit codes
 int ext_code::err_addr_format() asm "1001 PUSHINT";
+int ext_code::err_not_enough_balance() asm "1002 PUSHINT";
+
 ;; mint exit codes
-int ext_code::err_auth() asm "1002 PUSHINT";
+int ext_code::err_auth() asm "2002 PUSHINT";
 
 (slice) parse_data() inline { return get_data().begin_parse(); }
 
-(int, int, int, int, slice, cell, cell) load_data() inline {
+_ load_data() inline {
     slice ds = parse_data();
-    return (
+
+    var unpacked = (
         ds~load_grams(),      ;; supply
         ds~load_grams(),      ;; liq_cap
         ds~load_grams(),      ;; price
@@ -19,6 +22,8 @@ int ext_code::err_auth() asm "1002 PUSHINT";
 
         ds~load_ref()         ;; content ;; TODO: change content to name and symbol
     );
+
+    return unpacked;
 }
 
 () save_data(
@@ -78,12 +83,7 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     return jetton_amount;
 }
 
-
-
-
-(
-    int {- op -}, slice {- sender_addr -}
-) handle::start(cell msg, slice msg_body) impure inline_ref {
+(int {- op -}, slice {- sender_addr -}) handle::start(u_storage, cell msg, slice msg_body) impure inline_ref {
      slice cs = msg.begin_parse();
      throw_if(0, cs~load_uint(4) & 1);  ;; return on bounce
 
@@ -93,10 +93,12 @@ int ext_code::err_auth() asm "1002 PUSHINT";
          ext_code::err_addr_format(),
          extlib::is_addrsmpl(sender_addr)
     );
+
     (
         int supply, int liq_cap, int price, int end_time,
         slice owner_addr, cell jwall_code, cell content
-    ) = load_data();
+    ) = u_storage;
+
     int op = -1;
     if (slice_empty?(msg_body)){
         op = op::buy_tokens();
@@ -109,11 +111,25 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     return (op, sender_addr);
 }
 
-() handle::buy_tokens(int msg_value, slice sender_addr) impure inline {
+() handle::mint(u_storage, slice msg_body, slice sender_addr) impure inline {
     (
         int supply, int liq_cap, int price, int end_time,
         slice owner_addr, cell jwall_code, cell content
-    ) = load_data();
+    ) = u_storage;
+
+    var parsed_body = parse_body_mint(msg_body);
+    auth_by_owner(sender_addr, owner_addr);
+    save_data(
+        supply + mint_tokens(parsed_body, jwall_code), liq_cap, price,
+        end_time, owner_addr, jwall_code, content
+    );
+}
+
+() handle::buy_tokens(u_storage, int msg_value, slice sender_addr) impure inline {
+    (
+        int supply, int liq_cap, int price, int end_time,
+        slice owner_addr, cell jwall_code, cell content
+    ) = u_storage;
 
     throw_if(75, supply >= liq_cap);
     throw_if(76, now() > end_time);
@@ -140,33 +156,22 @@ int ext_code::err_auth() asm "1002 PUSHINT";
     );
 }
 
-() handle::mint(slice msg_body, slice sender_addr) impure inline {
+() handle::burn_tokens(u_storage, slice in_msg_body, slice sender_address) impure inline {
     (
         int supply, int liq_cap, int price, int end_time,
         slice owner_addr, cell jwall_code, cell content
-    ) = load_data();
+    ) = u_storage;
 
-    var parsed_body = parse_body_mint(msg_body);
-    auth_by_owner(sender_addr, owner_addr);
-    save_data(
-        supply + mint_tokens(parsed_body, jwall_code), liq_cap, price,
-        end_time, owner_addr, jwall_code, content
-    );
-}
-
-() handle::burn_tokens(slice in_msg_body, slice sender_address) impure inline {
     int jetton_amount = in_msg_body~load_grams();
     slice from_address = in_msg_body~load_msg_addr();
 
     throw_unless(74, extlib::slice_data_equal?(
-        calculate_user_jetton_wallet_address(
+        jwall_addr_by_owner(
             from_address,
             my_address(),
-            jetton_wallet_code
+            jwall_code
         ), sender_address
     ));
-
-    save_data(total_supply - jetton_amount, liq_cap, price, end_time, admin_address, content, jetton_wallet_code);
 
     slice response_address = in_msg_body~load_msg_addr();
     if (response_address.preload_uint(2) != 0) {
@@ -176,36 +181,42 @@ int ext_code::err_auth() asm "1002 PUSHINT";
             .store_grams(0)
             .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
             .store_uint(op::excesses(), 32)
-            .store_uint(query_id, 64);
+            .store_uint(cur_lt(), 64);
 
         send_raw_message(msg.end_cell(), 2 + 64);
     }
+
+    save_data(
+        supply - jetton_amount, liq_cap, price,
+        end_time, owner_addr, jwall_code, content
+    );
     return ();
 }
 
-
-() handle::withdraw(int balance, slice sender_addr) impure inline {
-    (
-        int supply, int liq_cap, int price, int end_time,
-        slice owner_addr, cell jwall_code, cell content
-    ) = load_data();
+() handle::withdraw(u_storage, int balance, slice sender_addr) impure inline {
+    (_, _, _, _, slice owner_addr, _, _) = u_storage;
     auth_by_owner(sender_addr, owner_addr);
+    throw_if(ext_code::err_not_enough_balance(), balance < extlib::1ton());
+
     builder msg = begin_cell()
         .store_uint(0x18, 6)
         .store_slice(owner_addr)
         .store_grams(balance - extlib::1ton())
-        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1);
-    send_raw_message(msg.end_cell(), 2);
+        .store_uint(0, 1 + 4 + 4 + 64 + 32 + 1 + 1)
+        .store_uint(0, 32)
+        .store_slice(text::ico_profit_withdraw());
+
+    send_raw_message(msg.end_cell(), 0);
 }
 
-
 () recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
-    (int op, slice sender_addr) = handle::start(msg, msg_body);
+    var u_storage = load_data();
+    (int op, slice sender_addr) = handle::start(u_storage, msg, msg_body);
 
-    if (op == op::mint()) { handle::mint(msg_body, sender_addr); return (); }
-    if (op == op::buy_tokens()) { handle::buy_tokens(msg_value, sender_addr); return (); }
-    if (op == op::burn_notification()) { handle::burn_tokens(msg_body, sender_addr); return (); }
-    if (op == op::withdraw()) { handle::withdraw(my_balance, sender_addr); return (); }
+    if (op == op::mint()) { handle::mint(u_storage, msg_body, sender_addr); return (); }
+    if (op == op::buy_tokens()) { handle::buy_tokens(u_storage, msg_value, sender_addr); return (); }
+    if (op == op::burn_notification()) { handle::burn_tokens(u_storage, msg_body, sender_addr); return (); }
+    if (op == op::withdraw()) { handle::withdraw(u_storage, my_balance, sender_addr); return (); }
    
     throw(0xffff);
 }
