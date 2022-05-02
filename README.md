@@ -6,8 +6,12 @@
 
 Based on TON [`"Fungible tokens (Jettons) standard"`](https://github.com/ton-blockchain/TIPs/issues/74)
 
-## build func
+## What have we added?
 
 ```bash
-make
+· Code refactoring
+· Restriction on mint new tokens
+· Limit on the number of tokens and time fоr the ICO
+· Withdraw
+· Fift scripts
 ```
