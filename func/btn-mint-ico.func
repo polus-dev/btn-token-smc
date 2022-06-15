@@ -99,14 +99,14 @@ _ load_data() inline {
 }
 
 (int {- op -}, slice {- sender_addr -}, slice {- msg_body -}) handle::start(u_storage, cell msg, slice msg_body) impure inline_ref {
-     slice cs = msg.begin_parse();
-     throw_if(ext_code::zero(), cs~load_uint(4) & 1);  ;; return on bounce
+    slice cs = msg.begin_parse();
+    throw_if(ext_code::zero(), cs~load_uint(4) & 1);  ;; return on bounce
 
-     slice sender_addr = cs~load_msg_addr();
+    slice sender_addr = cs~load_msg_addr();
 
-     throw_unless(  ;; thow error if address isn't MsgAddrSmpl
-         ext_code::err_addr_format(),
-         extlib::is_addrsmpl(sender_addr)
+    throw_unless(  ;; thow error if address isn't MsgAddrSmpl
+        ext_code::err_addr_format(),
+        extlib::is_addrsmpl(sender_addr)
     );
 
     (_, _, _, _, slice owner_addr, _, _, _) = u_storage;
