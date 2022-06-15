@@ -98,7 +98,7 @@ _ load_data() inline {
     return jetton_amount;
 }
 
-(int {- op -}, slice {- sender_addr -}) handle::start(u_storage, cell msg, slice msg_body) impure inline_ref {
+(int {- op -}, slice {- sender_addr -}, slice {- msg_body -}) handle::start(u_storage, cell msg, slice msg_body) impure inline_ref {
      slice cs = msg.begin_parse();
      throw_if(ext_code::zero(), cs~load_uint(4) & 1);  ;; return on bounce
 
@@ -120,7 +120,7 @@ _ load_data() inline {
         if (op == 0) { op = extlib::slice_data_equal?(sender_addr, owner_addr) ? op::withdraw() : op::buy_tokens(); } 
     }
 
-    return (op, sender_addr);
+    return (op, sender_addr, msg_body);
 }
 
 () handle::mint(u_storage, slice msg_body, slice sender_addr) impure inline {
@@ -218,9 +218,9 @@ _ load_data() inline {
     send_raw_message(msg.end_cell(), 0);
 }
 
-() recv_internal(int my_balance, int msg_value, cell msg, slice msg_body) impure {
+() recv_internal(int my_balance, int msg_value, cell msg, slice op_msg_body) impure {
     var u_storage = load_data();
-    (int op, slice sender_addr) = handle::start(u_storage, msg, msg_body);
+    (int op, slice sender_addr, slice msg_body) = handle::start(u_storage, msg, op_msg_body);
 
     if (op == op::mint()) { handle::mint(u_storage, msg_body, sender_addr); return (); }
     if (op == op::buy_tokens()) { handle::buy_tokens(u_storage, msg_value, sender_addr); return (); }
