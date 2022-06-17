@@ -143,14 +143,13 @@ _ load_data() inline {
         slice owner_addr, int max_supply, cell jwall_code, cell content
     ) = u_storage;
 
-    throw_if(ext_code::supply_more_than_liq_cap(), supply >= liq_cap);
-    throw_if(ext_code::ico_end(), now() > end_time);
-
     int mint_amount = 1 << 27;  ;; ~ 0.1342 TON
     int buy_amount = msg_value - mint_amount;
-    throw_if(ext_code::err_buy_amount(), buy_amount < price);
-
     int jamount = buy_amount * extlib::1ton() / price;
+
+    throw_if(ext_code::supply_more_than_liq_cap(), (supply + jamount) > liq_cap);
+    throw_if(ext_code::err_buy_amount(), buy_amount < price);
+    throw_if(ext_code::ico_end(), now() > end_time);
 
     cell master_msg = begin_cell()                  ;; begin_cell
         .store_uint(op::internal_transfer(), 32)    ;; op internal_transfer
