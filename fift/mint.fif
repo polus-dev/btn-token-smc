@@ -34,8 +34,12 @@ b>  =: master-msg
 <b 
     0x318f361 32 u,     // op mint
     mint-for-addr Addr, // to_address
-    mint-amount Gram,   // mint-amount
+    "0.2" $>GR Gram,    // amount
     master-msg ref,
 b>
 
+// send internal msg to minter
+// with this body and ~0.3 coins
+
 2 boc+>B Bx. cr
+
