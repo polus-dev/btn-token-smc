@@ -34,7 +34,7 @@ liq-cap max-supply > abort"liq-cap can't be more than max-supply"
 
 "auto/btn-jwallet.func.code.fif" include =: jwallet-code
 
-<b  // TODO: implement new standart
+<b
     0x01 8 u, // offchain
     "https://bafkreigdwrwkgjglg36osw2lwjyjagjbf2jb2omfifmyljflesvw3s7gxu.ipfs.cf-ipfs.com" $,
 b>  =: full-content
