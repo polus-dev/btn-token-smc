@@ -1,0 +1,41 @@
+"TonUtil.fif"   include
+"GetOpt.fif"    include
+"Asm.fif"       include
+
+{ show-options-help 1 halt } : usage 0 =: t-flag
+{ { +" " } 7 times } : my-tab
+
+begin-options
+    "<mint-amount> <mint-for-addr> <minter-addr> <self-addr>"  +cr +cr my-tab
+    +"Prepares mint message to the minter-ico smart contract"  +cr my-tab
+    disable-digit-options generic-help-setopt
+
+    "h" "--help" { usage } short-long-option
+        "Shows a help message" option-help
+parse-options
+
+$# 4 <> ' usage if
+
+$1 $>GR =: mint-amount
+$2 parse-smc-addr drop 2=: mint-for-addr
+$3 parse-smc-addr drop 2=: minter-addr
+$4 parse-smc-addr drop 2=: self-addr
+
+<b 
+    0x178d4519 32 u,    // op internal_transfer
+    now 64 u,           // query_id
+    mint-amount Gram,   // mint-amount
+    minter-addr Addr,   // from
+    self-addr Addr,     // response_address
+    1 Gram,             // forward_ton_amount
+    b{0} s,             // forward_payload
+b>  =: master-msg
+
+<b 
+    0x318f361 32 u,     // op mint
+    mint-for-addr Addr, // to_address
+    mint-amount Gram,   // mint-amount
+    master-msg ref,
+b>
+
+2 boc+>B Bx. cr

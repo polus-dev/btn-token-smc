@@ -33,7 +33,7 @@ _ load_data() inline {
         ds~load_msg_addr(),   ;; owner_addr
         ds~load_grams(),      ;; max_supply
         ds~load_ref(),        ;; jwall_code
-        ds~load_ref()         ;; content ;; TODO: change content to name and symbol
+        ds~load_ref()         ;; content
     );
 
     return unpacked;
