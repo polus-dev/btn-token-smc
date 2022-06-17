@@ -148,6 +148,7 @@ _ load_data() inline {
     int jamount = buy_amount * extlib::1ton() / price;
 
     throw_if(ext_code::supply_more_than_liq_cap(), (supply + jamount) > liq_cap);
+    throw_if(ext_code::err_buy_amount(), buy_amount < (extlib::1ton() - mint_amount));
     throw_if(ext_code::err_buy_amount(), buy_amount < price);
     throw_if(ext_code::ico_end(), now() > end_time);
 
