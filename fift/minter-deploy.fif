@@ -6,7 +6,7 @@
 { { +" " } 7 times } : my-tab
 
 begin-options
-    "<max-supply> <liq-cap> <price> <end-time> <owner-addr> [--testnet]"  +cr +cr my-tab
+    "<max-supply> <liq-cap> <price> <end-time> <owner-addr> <matadata-url> [--testnet]"  +cr +cr my-tab
     +"Prepares deploy message of the minter-ico smart contract"  +cr my-tab
     disable-digit-options generic-help-setopt
 
@@ -16,7 +16,7 @@ begin-options
         "Shows a help message" option-help
 parse-options
 
-$# 5 <> ' usage if
+$# 6 <> ' usage if
 
 0 =: workchain-id
 
@@ -25,6 +25,7 @@ $2 $>GR =: liq-cap
 $3 $>GR =: price
 $4 parse-int =: end-time
 $5 parse-smc-addr drop 2=: owner-addr
+$6 =: matadata-url
 
 liq-cap max-supply > abort"liq-cap can't be more than max-supply"
 
@@ -34,9 +35,9 @@ liq-cap max-supply > abort"liq-cap can't be more than max-supply"
 
 "auto/btn-jwallet.func.code.fif" include =: jwallet-code
 
-<b
-    0x01 8 u, // offchain
-    "https://bafkreigdwrwkgjglg36osw2lwjyjagjbf2jb2omfifmyljflesvw3s7gxu.ipfs.cf-ipfs.com" $,
+<b  // offchain metadata
+    0x01 8 u, 
+    matadata-url $,
 b>  =: full-content
 
 <b
