@@ -4,3 +4,5 @@ auto/*
 
 deprecated
 testnet-global.config.json
+
+deploy.sh
