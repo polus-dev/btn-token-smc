@@ -26,10 +26,10 @@ int ext_code::err_not_enough_balance()  asm "1002 PUSHINT";
 int ext_code::invalid_jwall_addr()      asm "1003 PUSHINT";
 int ext_code::max_supply_limit()        asm "1004 PUSHINT";
 
-;; "op::buy_tokens()" exit codes
-int ext_code::supply_more_than_liq_cap()    asm "2000 PUSHINT";
-int ext_code::ico_end()                     asm "2001 PUSHINT";
-int ext_code::err_buy_amount()              asm "2002 PUSHINT";
+int ext_code::max_ico_mint()            asm "2000 PUSHINT";
+int ext_code::ico_end()                 asm "2001 PUSHINT";
+int ext_code::ico_not_start()           asm "2002 PUSHINT";
+int ext_code::err_buy_amount()          asm "2003 PUSHINT";
 
 ;; system exit codes
 int ext_code::zero() asm "0 PUSHINT";
