@@ -19,8 +19,8 @@
 ;;  along with btn-token-smc.  If not, see <https://www.gnu.org/licenses/>.
 ;;
 
-int min_tons_for_storage() asm "10000000 PUSHINT"; ;; 0.01 TON
-int gas_consumption() asm "10000000 PUSHINT"; ;; 0.01 TON
+int min_tons_for_storage() asm "10000000 PUSHINT";  ;; 0.01 TON
+int gas_consumption() asm "10000000 PUSHINT";       ;; 0.01 TON
 
 
 (int, slice, slice, cell) load_data() inline {

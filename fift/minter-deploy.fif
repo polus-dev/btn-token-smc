@@ -6,7 +6,7 @@
 { { +" " } 7 times } : my-tab
 
 begin-options
-    "<max-supply> <liq-cap> <price> <end-time> <owner-addr> <matadata-url> [--testnet]"  +cr +cr my-tab
+    "<max-supply> <max-ico> <price> <end-time> <owner-addr> <matadata-url> [--testnet]"  +cr +cr my-tab
     +"Prepares deploy message of the minter-ico smart contract"  +cr my-tab
     disable-digit-options generic-help-setopt
 
@@ -21,13 +21,13 @@ $# 6 <> ' usage if
 0 =: workchain-id
 
 $1 $>GR =: max-supply
-$2 $>GR =: liq-cap
+$2 $>GR =: max-ico
 $3 $>GR =: price
 $4 parse-int =: end-time
 $5 parse-smc-addr drop 2=: owner-addr
 $6 =: matadata-url
 
-liq-cap max-supply > abort"liq-cap can't be more than max-supply"
+max-ico max-supply > abort"max-ico can't be more than max-supply"
 
 <{  SETCP0 ACCEPT
     "auto/btn-mint-ico.func.code.fif" include PUSHREF SETCODE
@@ -40,15 +40,24 @@ liq-cap max-supply > abort"liq-cap can't be more than max-supply"
     matadata-url $,
 b>  =: full-content
 
-<b
-    0 Gram,             // supply
-    liq-cap Gram,       // liq_cap
-    price Gram,         // price
-    end-time 32 u,      // end_time
-    owner-addr Addr,    // owner_addr
-    max-supply Gram,    // max-supply
-    jwallet-code ref,   // jwall_code
-    full-content ref,   // content
+<b 
+    <b                      // <-- main_data
+        owner-addr Addr,    // db::owner
+        0 Gram,             // db::simple_minted
+        max-supply Gram,    // db::allow_to_mint
+        0 Gram,             // db::simple_burned
+    b> ref,
+    <b                      // <-- ico_data
+        price Gram,         // db::ico_price
+        now 32 u,           // db::ico_start_time
+        end-time 32 u,      // db::ico_tstop_time
+        0 Gram,             // db::toico_minted
+        max-ico Gram,       // db::allow_to_ico
+    b> ref,
+    <b                      // <-- sys_data
+        jwallet-code ref,   // db::wall_code
+        full-content ref,   // db::content
+    b> ref,
 b>  =: init-storage
 
 <b

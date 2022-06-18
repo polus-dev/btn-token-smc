@@ -20,14 +20,15 @@
 ;;
 
 global slice    db::owner;
-global int      db::supply;
-global int      db::max_supply;
+global int      db::simple_minted;
+global int      db::allow_to_mint;
+global int      db::simple_burned;
 
 global int      db::ico_price;
 global int      db::ico_start_time;
 global int      db::ico_tstop_time;
-global int      db::minted_for_ico;
-global int      db::max_ico_mint;
+global int      db::toico_minted;
+global int      db::allow_to_ico;
 
 global cell     db::wall_code;
 global cell     db::content;
@@ -37,15 +38,16 @@ global cell     db::content;
 
     slice main_data     = ds~load_ref().begin_parse();
     db::owner           = main_data~load_msg_addr();
-    db::supply          = main_data~load_grams();
-    db::max_supply      = main_data~load_grams();
+    db::simple_minted   = main_data~load_grams();
+    db::allow_to_mint   = main_data~load_grams();
+    db::simple_burned   = main_data~load_grams();
 
     slice ico_data      = ds~load_ref().begin_parse();
     db::ico_price       = ico_data~load_grams();
     db::ico_start_time  = ico_data~load_uint(32);
     db::ico_tstop_time  = ico_data~load_uint(32);
-    db::minted_for_ico  = ico_data~load_grams();
-    db::max_ico_mint    = ico_data~load_grams();
+    db::toico_minted    = ico_data~load_grams();
+    db::allow_to_ico    = ico_data~load_grams();
 
     slice sys_data      = ds~load_ref().begin_parse();
     db::wall_code       = sys_data~load_ref();
@@ -57,15 +59,16 @@ global cell     db::content;
 () save_data() impure inline_ref {
     builder main_data = begin_cell()
         .store_slice(db::owner)
-        .store_grams(db::supply)
-        .store_grams(db::max_supply);
+        .store_grams(db::simple_minted)
+        .store_grams(db::allow_to_mint)
+        .store_grams(db::simple_burned);
 
     builder ico_data = begin_cell()
         .store_grams(db::ico_price)
         .store_uint(db::ico_start_time, 32)
         .store_uint(db::ico_tstop_time, 32)
-        .store_grams(db::minted_for_ico)
-        .store_grams(db::max_ico_mint);
+        .store_grams(db::toico_minted)
+        .store_grams(db::allow_to_ico);
 
     builder sys_data = begin_cell()
         .store_ref(db::wall_code)
@@ -88,9 +91,7 @@ global cell     db::content;
     );
 }
 
-() mint_tokens(slice to_address, int amount, cell master_msg,  int jamount) impure inline {
-    throw_if(ext_code::max_supply_limit(), (db::supply + jamount) > db::max_supply);
-
+() mint_tokens(slice to_address, int amount, cell master_msg, int jamount) impure inline {
     cell state_init = jwall_state_init(
         to_address,     ;; mint to
         my_address(),   ;; minter-ico address (self)
@@ -106,8 +107,6 @@ global cell     db::content;
         .store_ref(master_msg);
 
     send_raw_message(msg.end_cell(), 1);
-
-    db::supply += jamount;
 }
 
 () handle::mint(slice msg_body, slice sender_addr) impure inline_ref {
@@ -119,7 +118,14 @@ global cell     db::content;
     slice   msc             = master_msg.begin_parse().skip_bits(32 + 64);
     int     jamount         = msc~load_grams();
 
+    throw_if(
+        ext_code::max_supply_limit(), 
+        (db::simple_minted + jamount) > db::allow_to_mint
+    );
+
     mint_tokens(to_address, amount, master_msg, jamount);
+    db::simple_minted += jamount;
+
     zero_and_save();
 }
 
@@ -130,7 +136,7 @@ global cell     db::content;
 
     int now_ts = now();
 
-    throw_if(ext_code::max_ico_mint(), (db::supply + jamount) > db::max_ico_mint);
+    throw_if(ext_code::max_ico_mint(), (db::toico_minted + jamount) > db::allow_to_ico);
     throw_if(ext_code::err_buy_amount(), buy_amount < (extlib::1ton() - mint_amount));
     throw_if(ext_code::err_buy_amount(), buy_amount < db::ico_price);
     throw_if(ext_code::ico_not_start(), now_ts < db::ico_start_time);
@@ -147,7 +153,8 @@ global cell     db::content;
         .end_cell();
 
     mint_tokens(sender_addr, mint_amount, master_msg, jamount);
-    db::minted_for_ico += jamount;
+    db::toico_minted += jamount;
+
     zero_and_save();
 }
 
@@ -173,7 +180,7 @@ global cell     db::content;
         send_raw_message(msg.end_cell(), 2 + 64);
     }
 
-    db::supply -= jamount;
+    db::simple_burned += jamount;
     zero_and_save();
 }
 
@@ -237,12 +244,26 @@ global cell     db::content;
 
 (int, int, slice, cell, cell) get_jetton_data() method_id {
     load_data();
-    return (db::supply, -1, db::owner, db::content, db::wall_code);
+    int supply = (db::simple_minted + db::toico_minted) - db::simple_burned;
+
+    return (
+        supply, -1, db::owner, 
+        db::content, db::wall_code
+    );
 }
 
-(int) get_max_supply() method_id {
+([int, int], [int, int], [int, int], int) get_supply_info_extended() method_id {
     load_data();
-    return db::max_supply;
+
+    int supply = (db::simple_minted + db::toico_minted) - db::simple_burned;
+    int max_supply = db::allow_to_mint + db::allow_to_ico;
+
+    return (
+        [ supply, max_supply ],
+        [ db::simple_minted, db::toico_minted ],
+        [ db::allow_to_mint, db::allow_to_ico ],
+        db::simple_burned
+    );
 }
 
 (int, int, int, int, int) get_ico_data() method_id {
@@ -252,8 +273,8 @@ global cell     db::content;
         db::ico_price,
         db::ico_start_time,
         db::ico_tstop_time,
-        db::minted_for_ico,
-        db::max_ico_mint
+        db::toico_minted,
+        db::allow_to_ico
     );
 }
 
