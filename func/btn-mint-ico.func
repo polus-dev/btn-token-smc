@@ -190,6 +190,7 @@ global cell     db::content;
         .store_slice(text::ico_profit_withdraw());
 
     send_raw_message(msg.end_cell(), 0);
+    zero_and_save();
 }
 
 (int, slice, slice) handle::start(cell msg, slice msg_body) impure inline_ref {
