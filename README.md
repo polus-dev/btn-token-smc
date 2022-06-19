@@ -1,4 +1,4 @@
-## BTN (biton) token smc v1
+## BTN (biton) token smc v2
 
 [![FunC](https://img.shields.io/badge/made%20with-FunC-brightgreen)](https://ton.org/docs/#/func)
 [![Fift](https://img.shields.io/badge/made%20with-Fift-brightgreen)](https://newton-blockchain.github.io/docs/fiftbase.pdf)
@@ -6,15 +6,14 @@
 
 Based on TON [`"Fungible tokens (Jettons) standard"`](https://github.com/ton-blockchain/TIPs/issues/74)
 
-> :warning: Work in progress. This is not production ready version yet.
-
 ### Differences with the original [example](https://github.com/ton-blockchain/token-contract/tree/main/ft)
 
-- code refactoring
-- add max supply and ico(liq_cap) limits
+- global code refactoring
+- add max supply and ico limits
 - add ICO time limit
 - add withdraw coins from ICO
 - add fift scripts
+- ...
 
 ### Feedback
 
